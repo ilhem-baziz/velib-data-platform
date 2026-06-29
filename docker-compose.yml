@@ -153,7 +153,9 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
 
   spark-master:
-    image: apache/spark:3.5.6
+    build:
+      context: ./docker/spark
+    image: velib-spark:3.5.6
     container_name: spark-master
     hostname: spark-master
     command: >
@@ -169,6 +171,8 @@ services:
       - ./:/opt/app
     environment:
       PYTHONPATH: /opt/app/src
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -180,7 +184,9 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
 
   spark-worker-1:
-    image: apache/spark:3.5.6
+    build:
+      context: ./docker/spark
+    image: velib-spark:3.5.6
     container_name: spark-worker-1
     hostname: spark-worker-1
     command: >
@@ -196,6 +202,8 @@ services:
       - ./:/opt/app
     environment:
       PYTHONPATH: /opt/app/src
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -207,7 +215,9 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
 
   spark-worker-2:
-    image: apache/spark:3.5.6
+    build:
+      context: ./docker/spark
+    image: velib-spark:3.5.6
     container_name: spark-worker-2
     hostname: spark-worker-2
     command: >
@@ -223,6 +233,8 @@ services:
       - ./:/opt/app
     environment:
       PYTHONPATH: /opt/app/src
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
