@@ -1,0 +1,137 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "silver_releve_suite",
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "id_station" },
+      "meta": {
+        "description": "id_station ne doit jamais etre nul",
+        "pourquoi": "Sans id_station, le releve ne peut pas etre rattache a une station — la contrainte FK de la base rejetterait la ligne et corromprait silencieusement les donnees si on ne le detecte pas avant",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "date_collecte" },
+      "meta": {
+        "description": "La date de collecte ne doit jamais etre nulle",
+        "pourquoi": "Sans date_collecte, impossible d'historiser le releve dans le temps — toute l'analyse temporelle devient impossible",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "velos_disponibles" },
+      "meta": {
+        "description": "Le nombre de velos ne doit jamais etre nul",
+        "pourquoi": "C'est l'indicateur metier central — une valeur nulle fausserait tous les calculs de disponibilite dans Gold",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "velos_disponibles",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Velos disponibles entre 0 et 200",
+        "pourquoi": "Une valeur negative est physiquement impossible. Une valeur superieure a 200 depasse la capacite maximale connue des stations Velib — signale une anomalie API",
+        "action_si_echec": "WARNING — ligne exclue, anomalie enregistree dans monitoring.data_quality_alerts"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "bornes_disponibles",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Bornes disponibles entre 0 et 200",
+        "pourquoi": "Meme logique que velos_disponibles — valeur negative impossible, valeur trop haute signale une anomalie API",
+        "action_si_echec": "WARNING — ligne exclue, anomalie enregistree dans monitoring.data_quality_alerts"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "velos_mecaniques",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Velos mecaniques entre 0 et 200",
+        "pourquoi": "Le nombre de velos mecaniques ne peut pas depasser le total de velos disponibles ni etre negatif",
+        "action_si_echec": "WARNING — anomalie enregistree"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "velos_electriques",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Velos electriques entre 0 et 200",
+        "pourquoi": "Meme logique que velos_mecaniques",
+        "action_si_echec": "WARNING — anomalie enregistree"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "est_installee",
+        "value_set": [0, 1]
+      },
+      "meta": {
+        "description": "est_installee doit valoir 0 ou 1 uniquement",
+        "pourquoi": "C'est un booleen encode en entier — toute autre valeur indique un probleme de parsing ou un changement de format de l'API Velib",
+        "action_si_echec": "WARNING — anomalie enregistree, verifier le format API"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "retour_possible",
+        "value_set": [0, 1]
+      },
+      "meta": {
+        "description": "retour_possible doit valoir 0 ou 1 uniquement",
+        "pourquoi": "Meme logique que est_installee — booleen encode en entier",
+        "action_si_echec": "WARNING — anomalie enregistree, verifier le format API"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "location_possible",
+        "value_set": [0, 1]
+      },
+      "meta": {
+        "description": "location_possible doit valoir 0 ou 1 uniquement",
+        "pourquoi": "Meme logique que est_installee et retour_possible",
+        "action_si_echec": "WARNING — anomalie enregistree, verifier le format API"
+      }
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1400,
+        "max_value": 1600
+      },
+      "meta": {
+        "description": "Nombre de releves par collecte entre 1400 et 1600",
+        "pourquoi": "Le reseau Velib compte environ 1518 stations actives. Si on recoit moins de 1400 releves, cela signifie que l'API est incomplete ou qu'une partie du reseau est hors ligne. Plus de 1600 signalerait des doublons non detectes.",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "description": "Suite de validation des releves de disponibilite Velib en couche Silver. Valide la qualite des donnees apres transformation depuis Bronze, avant chargement dans PostgreSQL."
+  }
+}

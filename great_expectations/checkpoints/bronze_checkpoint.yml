@@ -1,0 +1,28 @@
+# Checkpoint Bronze
+# Relie la suite bronze_suite aux données brutes JSON lues depuis MinIO
+# Déclenché par Airflow après fetch_stations et fetch_availability
+# Si la validation échoue : pipeline arrêté + résultat écrit dans monitoring.ge_validation_results
+
+name: bronze_checkpoint
+config_version: 1.0
+class_name: SimpleCheckpoint
+
+# Suite de règles à appliquer
+expectation_suite_name: bronze_suite
+
+# Génère un rapport HTML dans data_docs à chaque validation
+site_names:
+  - local_site
+
+# Comportement en cas d'échec
+# raise_exception: true = Airflow reçoit une exception et arrête le DAG
+validations:
+  - batch_request:
+      datasource_name: pandas_dataframe
+      data_connector_name: default_runtime_data_connector_name
+      data_asset_name: bronze_station_status
+      runtime_parameters:
+        batch_data: null  # sera remplacé dynamiquement par ge_validations.py
+      batch_identifiers:
+        run_id: null      # sera remplacé dynamiquement par ge_validations.py
+    expectation_suite_name: bronze_suite

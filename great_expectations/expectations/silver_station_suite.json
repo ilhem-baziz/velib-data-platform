@@ -1,0 +1,106 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "silver_station_suite",
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "id_station" },
+      "meta": {
+        "description": "id_station ne doit jamais etre nul",
+        "pourquoi": "C'est la cle primaire de la table station — sans elle, impossible de relier un releve a une station. La contrainte FK de silver.releve_disponibilite rejetterait toute insertion orpheline",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "id_station" },
+      "meta": {
+        "description": "Pas de doublons sur id_station",
+        "pourquoi": "Chaque station doit avoir un identifiant unique. Un doublon provoquerait un conflit sur la contrainte PRIMARY KEY et corromprait les jointures avec les releves",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "nom" },
+      "meta": {
+        "description": "Le nom de la station ne doit jamais etre nul",
+        "pourquoi": "Le nom est obligatoire pour l'affichage dans les dashboards Grafana et PowerBI — une station sans nom est inexploitable pour les utilisateurs finaux",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "latitude" },
+      "meta": {
+        "description": "La latitude ne doit jamais etre nulle",
+        "pourquoi": "La latitude est indispensable pour la geolocalisation des stations sur la carte Grafana. Une valeur nulle rendrait la station invisible sur le dashboard cartographique",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "longitude" },
+      "meta": {
+        "description": "La longitude ne doit jamais etre nulle",
+        "pourquoi": "Meme logique que la latitude — indispensable pour la geolocalisation sur la carte",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "capacite",
+        "min_value": 0,
+        "max_value": 100
+      },
+      "meta": {
+        "description": "La capacite doit etre entre 0 et 100",
+        "pourquoi": "Une capacite negative est physiquement impossible. Une capacite superieure a 100 depasse les limites connues des stations Velib parisiennes et signalerait une anomalie API. Important aussi pour eviter une division par zero dans le calcul du taux de disponibilite en Gold",
+        "action_si_echec": "WARNING — anomalie enregistree dans monitoring.data_quality_alerts, ligne exclue du calcul du taux"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "latitude",
+        "min_value": 48.0,
+        "max_value": 49.0
+      },
+      "meta": {
+        "description": "Latitude dans la region parisienne (48.0 a 49.0)",
+        "pourquoi": "Paris et sa banlieue proche se situent entre les latitudes 48.0 et 49.0. Une valeur hors de cet intervalle (ex: 0.0 ou null converti en 0) signale une donnee GPS corrompue ou un defaut de capteur",
+        "action_si_echec": "WARNING — anomalie enregistree, station marquee comme suspecte"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "longitude",
+        "min_value": 2.0,
+        "max_value": 3.0
+      },
+      "meta": {
+        "description": "Longitude dans la region parisienne (2.0 a 3.0)",
+        "pourquoi": "Paris et sa banlieue proche se situent entre les longitudes 2.0 et 3.0. Meme logique que pour la latitude — detecte les coordonnees GPS aberrantes",
+        "action_si_echec": "WARNING — anomalie enregistree, station marquee comme suspecte"
+      }
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1400,
+        "max_value": 1600
+      },
+      "meta": {
+        "description": "Nombre de stations entre 1400 et 1600",
+        "pourquoi": "Le reseau Velib compte environ 1518 stations actives. Moins de 1400 signifierait que l'API station_information est incomplete ou en panne. Plus de 1600 signalerait des doublons non detectes dans la transformation",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "description": "Suite de validation des informations statiques des stations Velib en couche Silver. Valide la qualite des donnees de dimension apres transformation depuis Bronze, avant chargement dans PostgreSQL."
+  }
+}

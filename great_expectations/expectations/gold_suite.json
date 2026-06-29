@@ -1,0 +1,147 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "gold_suite",
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "id_station" },
+      "meta": {
+        "description": "id_station ne doit jamais etre nul dans Gold",
+        "pourquoi": "Gold est la couche de consommation finale — une station sans identifiant est inexploitable par Grafana et PowerBI. Si id_station est nul ici, cela signifie que le probleme n'a pas ete detecte en Silver, ce qui indique une faille dans la chaine de qualite",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee, investigation Silver requise"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "nom" },
+      "meta": {
+        "description": "Le nom de la station ne doit jamais etre nul dans Gold",
+        "pourquoi": "Le nom est affiche directement dans les dashboards Grafana et les rapports PowerBI — une valeur nulle provoquerait des lignes vides ou des erreurs d'affichage cote utilisateur final",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "taux_disponibilite" },
+      "meta": {
+        "description": "Le taux de disponibilite ne doit jamais etre nul",
+        "pourquoi": "C'est l'indicateur metier central de Gold — un taux nul fausserait tous les KPIs affiches dans Grafana et les analyses PowerBI. Il est calcule comme velos_disponibles / capacite, donc un nul ici signifie un probleme dans le calcul Silver->Gold",
+        "action_si_echec": "CRITIQUE — pipeline arrete, alerte declenchee"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "taux_disponibilite",
+        "min_value": 0,
+        "max_value": 1
+      },
+      "meta": {
+        "description": "Le taux de disponibilite doit etre entre 0 et 1",
+        "pourquoi": "Un taux represente un pourcentage entre 0% et 100% (encode entre 0.0 et 1.0). Un taux superieur a 1 signifie que l'API a renvoye plus de velos que la capacite declaree — anomalie qu'on corrige avec LEAST(..., 1.0) dans silver_to_gold.py. Cette regle verifie que la correction fonctionne correctement",
+        "action_si_echec": "CRITIQUE — la correction LEAST() n'a pas fonctionne, pipeline arrete"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "velos_disponibles",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Velos disponibles entre 0 et 200 dans Gold",
+        "pourquoi": "Meme regle qu'en Silver — on verifie que la valeur brute n'a pas ete corrompue pendant la transformation Silver->Gold. La presence de cette regle en Gold en plus de Silver garantit une double verification",
+        "action_si_echec": "WARNING — anomalie enregistree dans monitoring.data_quality_alerts"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "bornes_disponibles",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": {
+        "description": "Bornes disponibles entre 0 et 200 dans Gold",
+        "pourquoi": "Meme logique que velos_disponibles — double verification apres transformation",
+        "action_si_echec": "WARNING — anomalie enregistree dans monitoring.data_quality_alerts"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "latitude",
+        "min_value": 48.0,
+        "max_value": 49.0
+      },
+      "meta": {
+        "description": "Latitude dans la region parisienne dans Gold",
+        "pourquoi": "Les coordonnees GPS sont copiees depuis Silver vers Gold — cette regle verifie qu'elles n'ont pas ete corrompues pendant la jointure Silver->Gold. Indispensable pour l'affichage correct sur la carte Grafana Geomap",
+        "action_si_echec": "WARNING — station mal positionnee sur la carte, anomalie enregistree"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "longitude",
+        "min_value": 2.0,
+        "max_value": 3.0
+      },
+      "meta": {
+        "description": "Longitude dans la region parisienne dans Gold",
+        "pourquoi": "Meme logique que la latitude — verifie l'integrite des coordonnees GPS apres la jointure Silver->Gold",
+        "action_si_echec": "WARNING — station mal positionnee sur la carte, anomalie enregistree"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "est_vide",
+        "value_set": [true, false]
+      },
+      "meta": {
+        "description": "est_vide doit etre un booleen true ou false",
+        "pourquoi": "est_vide est calcule dans Silver->Gold comme (velos_disponibles = 0). Si la valeur n'est pas un booleen, cela signifie que le calcul a echoue ou que le type a ete corrompu pendant la transformation",
+        "action_si_echec": "CRITIQUE — erreur de transformation, pipeline arrete"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "est_pleine",
+        "value_set": [true, false]
+      },
+      "meta": {
+        "description": "est_pleine doit etre un booleen true ou false",
+        "pourquoi": "Meme logique que est_vide — calcule comme (bornes_disponibles = 0). Toute valeur autre qu'un booleen signale une corruption du calcul",
+        "action_si_echec": "CRITIQUE — erreur de transformation, pipeline arrete"
+      }
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1400,
+        "max_value": 1600
+      },
+      "meta": {
+        "description": "Nombre de stations dans Gold entre 1400 et 1600",
+        "pourquoi": "Gold doit contenir exactement une ligne par station active — ni plus (doublons) ni beaucoup moins (stations manquantes). Si le nombre differe significativement de Silver (~1518), cela signifie que la jointure Silver->Gold a echoue ou exclu des stations par erreur",
+        "action_si_echec": "CRITIQUE — pipeline arrete, verifier la jointure Silver->Gold"
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "derniere_collecte" },
+      "meta": {
+        "description": "La date de derniere collecte ne doit jamais etre nulle dans Gold",
+        "pourquoi": "derniere_collecte est l'horodatage du snapshot actuel — c'est ce que Grafana utilise pour verifier la fraicheur des donnees. Une valeur nulle rendrait impossible le monitoring de la fraicheur et desactiverait les alertes de pipeline",
+        "action_si_echec": "CRITIQUE — monitoring de fraicheur impossible, pipeline arrete"
+      }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0",
+    "description": "Suite de validation des indicateurs metier de la couche Gold. Verifie l'integrite des donnees apres la transformation Silver->Gold avant exposition via Grafana et PowerBI. Cette suite constitue le dernier filet de securite avant la consommation par les utilisateurs finaux."
+  }
+}

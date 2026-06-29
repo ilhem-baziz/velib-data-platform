@@ -1,0 +1,57 @@
+{
+  "_comment": "Suite de validations Great Expectations pour la couche Bronze : vérifie la structure et la cohérence des données brutes issues de l'API Vélib (existence des colonnes, valeurs non nulles, bornes min/max, nombre de stations attendu).",
+  "data_asset_type": null,
+  "expectation_suite_name": "bronze_suite",
+  "expectations": [
+    {
+      "_comment": "Règle 1 : Vérifie que la colonne 'station_id' existe dans le jeu de données. Sans cette colonne clé, impossible d'identifier chaque station Vélib de manière unique.",
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "station_id" },
+      "meta": { "description": "L'identifiant station doit exister" }
+    },
+    {
+      "_comment": "Règle 2 : Vérifie qu'aucune valeur de 'station_id' n'est nulle. Chaque ligne doit être rattachée à une station identifiable pour garantir la traçabilité des données.",
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "station_id" },
+      "meta": { "description": "id_station ne doit jamais etre nul" }
+    },
+    {
+      "_comment": "Règle 3 : Vérifie qu'aucune valeur de 'num_bikes_available' n'est nulle. Une valeur manquante fausserait les analyses de disponibilité des vélos.",
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "num_bikes_available" },
+      "meta": { "description": "velos_disponibles ne doit jamais etre nul" }
+    },
+    {
+      "_comment": "Règle 4 : Vérifie que le nombre de vélos disponibles est compris entre 0 et 200. Une valeur négative ou supérieure à 200 indiquerait une anomalie dans les données brutes de l'API.",
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "num_bikes_available",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": { "description": "velos disponibles entre 0 et 200" }
+    },
+    {
+      "_comment": "Règle 5 : Vérifie que le nombre de bornes disponibles est compris entre 0 et 200. Même logique que pour les vélos : détecte les valeurs aberrantes ou corrompues.",
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "num_docks_available",
+        "min_value": 0,
+        "max_value": 200
+      },
+      "meta": { "description": "bornes disponibles entre 0 et 200" }
+    },
+    {
+      "_comment": "Règle 6 : Vérifie que le nombre total de lignes (stations) est compris entre 1400 et 1600. Le réseau Vélib compte environ 1500 stations ; un écart important signalerait une ingestion partielle ou dupliquée.",
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1400,
+        "max_value": 1600
+      },
+      "meta": { "description": "Le nombre de stations doit etre entre 1400 et 1600" }
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "0.18.0"
+  }
+}

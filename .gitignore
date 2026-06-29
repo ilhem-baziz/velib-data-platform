@@ -1,0 +1,31 @@
+.env
+__pycache__/
+*.pyc
+*.log
+
+data/bronze/*
+data/silver/*
+data/gold/*
+
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+
+.airflow/
+postgres_data/
+minio_data/
+grafana_data/
+
+# Great Expectations
+great_expectations/uncommitted/
+great_expectations/checkpoints/*/run_*
+great_expectations/validations/
+great_expectations/profilers/
+
+# Logs
+logs/
+*.log
+
+# OS / IDE
+.vscode/
+.DS_Store
