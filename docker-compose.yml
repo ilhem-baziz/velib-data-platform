@@ -245,8 +245,57 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
 
+  hdfs-namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-namenode
+    hostname: hdfs-namenode
+    restart: always
+    ports:
+      - "9870:9870"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      CLUSTER_NAME: velib-hadoop
+    env_file:
+      - ./hadoop.env
+
+  hdfs-datanode-1:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-datanode-1
+    hostname: hdfs-datanode-1
+    restart: always
+    depends_on:
+      - hdfs-namenode
+    ports:
+      - "9864:9864"
+    volumes:
+      - hadoop_datanode1:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "hdfs-namenode:9870"
+    env_file:
+      - ./hadoop.env
+
+  hdfs-datanode-2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-datanode-2
+    hostname: hdfs-datanode-2
+    restart: always
+    depends_on:
+      - hdfs-namenode
+    ports:
+      - "9865:9864"
+    volumes:
+      - hadoop_datanode2:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "hdfs-namenode:9870"
+    env_file:
+      - ./hadoop.env
+
 volumes:
   postgres_data:
   minio_data:
   grafana_data:
+  hadoop_namenode:
+  hadoop_datanode1:
+  hadoop_datanode2:
   

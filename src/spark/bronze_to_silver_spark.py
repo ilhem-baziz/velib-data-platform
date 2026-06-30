@@ -16,7 +16,8 @@ from pyspark.sql.types import (
 from config import MINIO_BUCKET
 from utils.minio_client import get_minio_client
 
-
+SILVER_STATIONS_PATH = "hdfs://hdfs-namenode:9000/data/silver/stations"
+SILVER_RELEVES_PATH = "hdfs://hdfs-namenode:9000/data/silver/releves"
 # ============================================================
 # Spark session
 # ============================================================
@@ -26,7 +27,9 @@ def create_spark_session():
         SparkSession.builder
         .appName("velib_bronze_to_silver")
         .master("spark://spark-master:7077")
+        .config("spark.hadoop.fs.defaultFS", "hdfs://hdfs-namenode:9000")
         .config("spark.sql.shuffle.partitions", "4")
+        .config("spark.hadoop.dfs.replication", "2")
         .getOrCreate()
     )
 
@@ -403,17 +406,17 @@ def run_bronze_to_silver_spark():
 
         # Stations = données quasi statiques, on remplace la version silver
         df_station.write.mode("overwrite").parquet(
-            "/opt/app/data/silver/stations"
+            SILVER_STATIONS_PATH
         )
 
         # Releves = données historiques, on ajoute les nouveaux relevés
         df_releve.write.mode("append").parquet(
-            "/opt/app/data/silver/releves"
+              SILVER_RELEVES_PATH
         )
 
         print("Ecriture Parquet terminee :")
-        print("- /opt/app/data/silver/stations")
-        print("- /opt/app/data/silver/releves")
+        print("- " + SILVER_STATIONS_PATH)
+        print("- " + SILVER_RELEVES_PATH)
         print("Transformation Bronze vers Silver Spark terminee avec succes")
 
     finally:
