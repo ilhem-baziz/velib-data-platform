@@ -44,7 +44,9 @@ services:
       "
 
   airflow-init:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./docker/airflow
+    image: velib-airflow-spark:2.9.3
     container_name: velib_airflow_init
     depends_on:
       postgres:
@@ -80,7 +82,9 @@ services:
       "
 
   airflow-webserver:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./docker/airflow
+    image: velib-airflow-spark:2.9.3
     container_name: velib_airflow_webserver
     depends_on:
       - airflow-init
@@ -110,7 +114,9 @@ services:
     command: webserver
 
   airflow-scheduler:
-    image: apache/airflow:2.9.3
+    build:
+      context: ./docker/airflow
+    image: velib-airflow-spark:2.9.3
     container_name: velib_airflow_scheduler
     depends_on:
       - airflow-init

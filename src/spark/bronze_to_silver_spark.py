@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, udf, from_unixtime, to_timestamp
+from pyspark.sql.functions import col, lit, from_unixtime, to_timestamp, expr
 from pyspark.sql.types import (
     ArrayType,
     DoubleType,
@@ -272,35 +272,6 @@ def prepare_releve_rows(station_status_json):
     return cleaned
 
 
-def extract_mechanical(bike_types):
-    total = 0
-
-    if bike_types:
-        for item in bike_types:
-            try:
-                total += int(item["mechanical"] or 0)
-            except Exception:
-                pass
-
-    return total
-
-
-def extract_ebike(bike_types):
-    total = 0
-
-    if bike_types:
-        for item in bike_types:
-            try:
-                total += int(item["ebike"] or 0)
-            except Exception:
-                pass
-
-    return total
-
-
-extract_mechanical_udf = udf(extract_mechanical, IntegerType())
-extract_ebike_udf = udf(extract_ebike, IntegerType())
-
 
 def transform_releves_spark(spark, station_status_json, source_file_status):
     releve_rows = prepare_releve_rows(station_status_json)
@@ -313,11 +284,17 @@ def transform_releves_spark(spark, station_status_json, source_file_status):
     df = (
         df.withColumn(
             "velos_mecaniques",
-            extract_mechanical_udf(col("num_bikes_available_types")),
+            expr(
+                "aggregate(num_bikes_available_types, 0, "
+                "(acc, x) -> acc + coalesce(x.mechanical, 0))"
+            ),
         )
         .withColumn(
             "velos_electriques",
-            extract_ebike_udf(col("num_bikes_available_types")),
+            expr(
+                "aggregate(num_bikes_available_types, 0, "
+                "(acc, x) -> acc + coalesce(x.ebike, 0))"
+            ),
         )
         .withColumn("date_collecte", to_timestamp(lit(date_collecte_str)))
         .withColumn("source_file", lit(source_file_status))
