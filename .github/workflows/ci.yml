@@ -25,7 +25,7 @@ jobs:
       - name: Check required project files
         run: |
           test -f docker-compose.yml
-          test -f .env.example
+          test -f .env.auto
           test -d dags
           test -d src
           test -d docs
