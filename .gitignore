@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 *.log
+.env.*
+backups/
+*.log
+
 
 data/bronze/*
 data/silver/*
@@ -28,4 +32,6 @@ logs/
 
 # OS / IDE
 .vscode/
-.DS_Store
+.DS_Storeb a c k u p s / 
+ 
+ 

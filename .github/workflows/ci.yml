@@ -1,0 +1,35 @@
+name: CI - Plateforme Big Data Velib
+
+on:
+  push:
+    branches:
+      - main
+      - feature-environnement-distribue
+  pull_request:
+
+jobs:
+  validate-project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Docker Compose configuration
+        run: docker compose config
+
+      - name: Validate Python syntax
+        run: |
+          python -m compileall dags src
+
+      - name: Check required project files
+        run: |
+          test -f docker-compose.yml
+          test -d dags
+          test -d src
+          test -d docs
+
+      - name: Check documentation files
+        run: |
+          test -f docs/runbook_maintenance.md
+          test -f docs/backup_restore.md
