@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession, Window
+from pyspark import StorageLevel
 from pyspark.sql.functions import (
     col,
     lit,
@@ -47,7 +48,15 @@ def create_spark_session():
         .config("spark.hadoop.dfs.replication", "2")
         .getOrCreate()
     )
-
+def mettre_en_cache(df, nom_dataset):
+    """
+    Met en cache un DataFrame avant insertion HDFS/PostgreSQL.
+    MEMORY_AND_DISK permet de garder les données en mémoire et de déborder sur disque si nécessaire.
+    """
+    df_cache = df.persist(StorageLevel.MEMORY_AND_DISK)
+    nb_lignes = df_cache.count()
+    print(f"[CACHE] {nom_dataset} mis en cache avant insertion - {nb_lignes} lignes")
+    return df_cache
 
 def get_postgres_connection():
     return psycopg2.connect(
@@ -498,38 +507,53 @@ def run_silver_to_gold_spark():
         df_releves = spark.read.parquet(SILVER_RELEVES_PATH)
 
         print("Construction Gold disponibilite_courante...")
-        df_dispo = build_disponibilite_courante(df_stations, df_releves)
+        df_dispo = mettre_en_cache(
+            build_disponibilite_courante(df_stations, df_releves),
+            "gold.disponibilite_courante",
+        )
 
         print("Construction Gold tendance_horaire...")
-        df_tendance = build_tendance_horaire(df_stations, df_releves)
+        df_tendance = mettre_en_cache(
+            build_tendance_horaire(df_stations, df_releves),
+            "gold.tendance_horaire",
+        )
 
         print("Construction Gold kpi_reseau_courant...")
-        df_kpi = build_kpi_reseau_courant(df_dispo)
+        df_kpi = mettre_en_cache(
+            build_kpi_reseau_courant(df_dispo),
+            "gold.kpi_reseau_courant",
+        )
 
-        print("Ecriture Gold dans HDFS...")
-        df_dispo.repartition(4).write.mode("overwrite").parquet(GOLD_DISPO_PATH)
-        df_tendance.repartition(4).write.mode("overwrite").parquet(GOLD_TENDANCE_PATH)
-        df_kpi.coalesce(1).write.mode("overwrite").parquet(GOLD_KPI_PATH)
-        df_kpi.coalesce(1).write.mode("append").parquet(GOLD_KPI_HISTORY_PATH)
-
-        print("Chargement Gold dans PostgreSQL...")
         conn = get_postgres_connection()
 
         try:
             ensure_gold_tables(conn)
+
+            # disponibilite_courante
+            df_dispo.repartition(4).write.mode("overwrite").parquet(GOLD_DISPO_PATH)
             load_disponibilite_courante_to_postgres(conn, df_dispo)
+            df_dispo.unpersist()
+            print("[CACHE] gold.disponibilite_courante libere du cache")
+
+            # tendance_horaire
+            df_tendance.repartition(4).write.mode("overwrite").parquet(GOLD_TENDANCE_PATH)
             load_tendance_horaire_to_postgres(conn, df_tendance)
+            df_tendance.unpersist()
+            print("[CACHE] gold.tendance_horaire libere du cache")
+
+            # kpi_reseau_courant + kpi_reseau_historique
+            df_kpi.coalesce(1).write.mode("overwrite").parquet(GOLD_KPI_PATH)
+            df_kpi.coalesce(1).write.mode("append").parquet(GOLD_KPI_HISTORY_PATH)
             load_kpi_reseau_courant_to_postgres(conn, df_kpi)
             load_kpi_reseau_historique_to_postgres(conn, df_kpi)
+            df_kpi.unpersist()
+            print("[CACHE] gold.kpi_reseau_courant/historique libere du cache")
+
         except Exception:
             conn.rollback()
             raise
         finally:
             conn.close()
-
-        print("Nombre lignes disponibilite_courante :", df_dispo.count())
-        print("Nombre lignes tendance_horaire :", df_tendance.count())
-        print("Nombre lignes kpi_reseau_courant :", df_kpi.count())
 
         print("Transformation Silver vers Gold terminee avec succes")
 

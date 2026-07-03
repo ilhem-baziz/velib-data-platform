@@ -16,6 +16,9 @@ SPARK_MONITORING_CMD = """
 spark-submit \
   --master spark://spark-master:7077 \
   --deploy-mode client \
+  --total-executor-cores 2 \
+  --executor-cores 1 \
+  --executor-memory 1g \
   --conf spark.driver.host=airflow-scheduler \
   --conf spark.driver.bindAddress=0.0.0.0 \
   --conf spark.hadoop.fs.defaultFS=hdfs://hdfs-namenode:9000 \

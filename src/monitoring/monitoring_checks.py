@@ -111,6 +111,7 @@ def ensure_monitoring_tables(conn):
                 dead_nodes INTEGER,
                 missing_blocks INTEGER,
                 under_replicated_blocks INTEGER,
+                corrupt_blocks INTEGER,
                 capacity_total_gb NUMERIC,
                 capacity_used_gb NUMERIC,
                 capacity_remaining_gb NUMERIC,
@@ -155,20 +156,20 @@ def insert_check(conn, component, layer_name, check_name, status, severity, metr
 def insert_hdfs_cluster_metrics(
     conn,
     live_nodes, dead_nodes,
-    missing_blocks, under_replicated_blocks,
+    missing_blocks, under_replicated_blocks, corrupt_blocks,
     capacity_total_gb, capacity_used_gb, capacity_remaining_gb, capacity_used_percent,
 ):
     with conn.cursor() as cursor:
         cursor.execute(
             """
             INSERT INTO monitoring.hdfs_cluster_metrics (
-                live_nodes, dead_nodes, missing_blocks, under_replicated_blocks,
+                live_nodes, dead_nodes, missing_blocks, under_replicated_blocks, corrupt_blocks,
                 capacity_total_gb, capacity_used_gb, capacity_remaining_gb, capacity_used_percent
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
             """,
             (
                 live_nodes, dead_nodes,
-                missing_blocks, under_replicated_blocks,
+                missing_blocks, under_replicated_blocks, corrupt_blocks,
                 capacity_total_gb, capacity_used_gb, capacity_remaining_gb, capacity_used_percent,
             ),
         )
@@ -232,6 +233,7 @@ def check_hdfs_cluster(conn):
     dead_nodes = len(json.loads(fs_info.get("DeadNodes", "{}")))
     missing_blocks = int(fs_state.get("MissingBlocks", 0))
     under_replicated_blocks = int(fs_state.get("UnderReplicatedBlocks", 0))
+    corrupt_blocks = int(fs_state.get("CorruptBlocks", 0))
 
     capacity_total = float(fs_state.get("CapacityTotal", 0))
     capacity_used = float(fs_state.get("CapacityUsed", 0))
@@ -242,7 +244,7 @@ def check_hdfs_cluster(conn):
     insert_hdfs_cluster_metrics(
         conn,
         live_nodes, dead_nodes,
-        missing_blocks, under_replicated_blocks,
+        missing_blocks, under_replicated_blocks, corrupt_blocks,
         bytes_to_gb(capacity_total),
         bytes_to_gb(capacity_used),
         bytes_to_gb(capacity_remaining),
@@ -265,6 +267,12 @@ def check_hdfs_cluster(conn):
                  "OK" if missing_blocks == 0 else "FAILED",
                  "INFO" if missing_blocks == 0 else "CRITICAL",
                  missing_blocks, f"{missing_blocks} bloc(s) manquant(s)")
+
+    # CorruptBlocks = blocs dont la somme de contrôle est invalide → intégrité des données compromise
+    insert_check(conn, "HDFS", "Cluster", "CORRUPT_BLOCKS",
+                 "OK" if corrupt_blocks == 0 else "FAILED",
+                 "INFO" if corrupt_blocks == 0 else "CRITICAL",
+                 corrupt_blocks, f"{corrupt_blocks} bloc(s) corrompu(s)")
 
     # UnderReplicated = blocs avec moins de répliques que le facteur cible (WARNING, pas CRITICAL)
     insert_check(conn, "HDFS", "Cluster", "UNDER_REPLICATED_BLOCKS",

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 
 default_args = {
@@ -16,6 +17,9 @@ SPARK_BRONZE_TO_SILVER_CMD = """
 spark-submit \
   --master spark://spark-master:7077 \
   --deploy-mode client \
+  --total-executor-cores 6 \
+  --executor-cores 2 \
+  --executor-memory 1g \
   --conf spark.driver.host=airflow-scheduler \
   --conf spark.driver.bindAddress=0.0.0.0 \
   --conf spark.hadoop.fs.defaultFS=hdfs://hdfs-namenode:9000 \
@@ -42,3 +46,11 @@ with DAG(
         bash_command=SPARK_BRONZE_TO_SILVER_CMD,
         do_xcom_push=False,
     )
+
+    task_trigger_gold = TriggerDagRunOperator(
+        task_id="declencher_transformation_gold",
+        trigger_dag_id="velib_gold_transformation",
+        wait_for_completion=False,
+    )
+
+    task_bronze_to_silver_spark >> task_trigger_gold

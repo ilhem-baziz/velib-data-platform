@@ -171,6 +171,11 @@ services:
     image: velib-spark:3.5.6
     container_name: spark-master
     hostname: spark-master
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: >
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.master.Master
@@ -182,6 +187,7 @@ services:
       - "8088:8080"
     volumes:
       - ./:/opt/app
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     environment:
       PYTHONPATH: /opt/app/src
       PYSPARK_PYTHON: python3
@@ -213,6 +219,7 @@ services:
       - "8089:8081"
     volumes:
       - ./:/opt/app
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     environment:
       PYTHONPATH: /opt/app/src
       PYSPARK_PYTHON: python3
@@ -244,6 +251,40 @@ services:
       - "8090:8082"
     volumes:
       - ./:/opt/app
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    environment:
+      PYTHONPATH: /opt/app/src
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+
+  spark-worker-3:
+    build:
+      context: ./docker/spark
+    image: velib-spark:3.5.6
+    container_name: spark-worker-3
+    hostname: spark-worker-3
+    profiles: ["manual"]
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+      --webui-port 8083
+    depends_on:
+      - spark-master
+    ports:
+      - "8091:8083"
+    volumes:
+      - ./:/opt/app
+      - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     environment:
       PYTHONPATH: /opt/app/src
       PYSPARK_PYTHON: python3
@@ -303,6 +344,36 @@ services:
       SERVICE_PRECONDITION: "hdfs-namenode:9870"
     env_file:
       - ./hadoop.env
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: velib_docker_socket_proxy
+    environment:
+      - CONTAINERS=1
+      - POST=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: velib_cadvisor
+    ports:
+      - "8095:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: velib_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - cadvisor
 
 volumes:
   postgres_data:
